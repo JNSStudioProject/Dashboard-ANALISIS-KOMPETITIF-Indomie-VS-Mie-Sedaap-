@@ -516,15 +516,17 @@ with col_chart1:
         # Group by scrape_date and brand
         # Apply basic outlier filtering to match KPI values
         clean_df = df_filtered.copy()
-        def filter_outliers(group):
-            s = group['final_price'].dropna()
-            if len(s) < 5:
-                return group
-            lo, hi = s.quantile(0.05), s.quantile(0.95)
-            return group[(group['final_price'] >= lo) & (group['final_price'] <= hi)]
-            
+        
         if not clean_df.empty:
-            clean_df = clean_df.groupby('brand', group_keys=False).apply(filter_outliers)
+            valid_indices = []
+            for brand, group in clean_df.groupby('brand'):
+                s = group['final_price'].dropna()
+                if len(s) < 5:
+                    valid_indices.extend(group.index.tolist())
+                else:
+                    lo, hi = s.quantile(0.05), s.quantile(0.95)
+                    valid_indices.extend(group[(group['final_price'] >= lo) & (group['final_price'] <= hi)].index.tolist())
+            clean_df = clean_df.loc[valid_indices]
             
         base_trend = clean_df.groupby(['scrape_date', 'brand'])['final_price'].mean().reset_index()
         
