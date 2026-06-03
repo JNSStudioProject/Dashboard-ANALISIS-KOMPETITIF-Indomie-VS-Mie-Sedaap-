@@ -656,7 +656,7 @@ st.markdown("<h3 style='color:#1e293b; margin-bottom: 15px; font-weight: 800;'>3
 col_why1, col_why2, col_why3 = st.columns(3)
 
 with col_why1:
-    st.markdown("""<div style='height: 110px;'>
+    st.markdown("""<div style='min-height: 80px; margin-bottom: -10px;'>
         <div class="chart-title">Peta Sebaran Wilayah (Peta Tekanan Harga)</div>
         <div class="chart-desc"><b>Keterangan:</b> Rata-rata harga per bungkus di tiap provinsi pada masing-masing platform. Semakin merah = harga semakin mahal. Daerah berwarna pucat/putih menandakan "perang harga" atau harga murah.</div>
     </div>""", unsafe_allow_html=True)
@@ -675,7 +675,7 @@ with col_why1:
         st.info("Data untuk area ini tidak lengkap.")
 
 with col_why2:
-    st.markdown("""<div style='height: 110px;'>
+    st.markdown("""<div style='min-height: 80px; margin-bottom: -10px;'>
         <div class="chart-title">Korelasi Harga vs Diskon</div>
         <div class="chart-desc"><b>Keterangan:</b> Scatter plot. Kanan Atas = High Price High Discount. Kiri Bawah = Everyday Low Price.</div>
     </div>""", unsafe_allow_html=True)
@@ -691,7 +691,7 @@ with col_why2:
         st.plotly_chart(fig_scatter, use_container_width=True)
 
 with col_why3:
-    st.markdown("""<div style='height: 110px;'>
+    st.markdown("""<div style='min-height: 80px; margin-bottom: -10px;'>
         <div class="chart-title">Root Cause: Pembedahan Harga</div>
         <div class="chart-desc"><b>Keterangan:</b> Selisih harga (Price Gap) berdasarkan tipe kemasan. Semakin ke kanan (merah) = Sedaap makin mahal.</div>
     </div>""", unsafe_allow_html=True)
@@ -722,7 +722,7 @@ st.markdown("<hr style='margin-top:40px;'>", unsafe_allow_html=True)
 st.markdown("<h3 style='color:#1e293b; margin-bottom: 15px; font-weight: 800;'>4. Analisis Aktivitas Promosi</h3>", unsafe_allow_html=True)
 col_promo1, col_promo2, col_promo3 = st.columns(3)
 with col_promo1:
-    st.markdown("""<div style='height: 110px;'>
+    st.markdown("""<div style='min-height: 80px; margin-bottom: -10px;'>
         <div class="chart-title">Tingkat Keseringan Promo</div>
         <div class="chart-desc"><b>Keterangan:</b> Jumlah produk berdasarkan tipe promo.</div>
     </div>""", unsafe_allow_html=True)
@@ -737,7 +737,7 @@ with col_promo1:
         st.plotly_chart(fig_promo_freq, use_container_width=True)
 
 with col_promo2:
-    st.markdown("""<div style='height: 110px;'>
+    st.markdown("""<div style='min-height: 80px; margin-bottom: -10px;'>
         <div class="chart-title">Perkembangan Tren Diskon</div>
         <div class="chart-desc"><b>Keterangan:</b> Tren persentase diskon rata-rata harian.</div>
     </div>""", unsafe_allow_html=True)
@@ -788,7 +788,7 @@ with col_promo2:
         st.info("Data tren diskon tidak tersedia.")
 
 with col_promo3:
-    st.markdown("""<div style='height: 110px;'>
+    st.markdown("""<div style='min-height: 80px; margin-bottom: -10px;'>
         <div class="chart-title">Hari Puncak Diskon</div>
         <div class="chart-desc"><b>Keterangan:</b> 5 hari dengan rata-rata diskon tertinggi selama periode pantauan.</div>
     </div>""", unsafe_allow_html=True)
