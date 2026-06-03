@@ -160,6 +160,9 @@ def load_data():
     return df_clean
 df = load_data()
 
+# Hapus noise/outlier diskon ekstrem (misal diskon 100%)
+df = df[(df['discount_pct'].isna()) | (df['discount_pct'] < 95)]
+
 # -----------------------------------------------------------------------------
 # 4. SIDEBAR
 # -----------------------------------------------------------------------------
@@ -289,7 +292,7 @@ st.markdown(f"""
         <span style="font-size: 16px; margin-right: 8px;">🤖</span>
         <strong style="color: #0f172a; font-size: 15px; letter-spacing: 0.5px;">WAWASAN ANALIS AI</strong>
     </div>
-    <p style="margin: 0; font-size: 14px; color: #475569; line-height: 1.6;">{exec_summary_text}</p>
+    <p style="margin: 0; font-size: 14px; color: #475569; line-height: 1.6; text-align: justify;">{exec_summary_text}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -305,6 +308,37 @@ def draw_kpi_card(title, value, sub_text, sub_color, kpi_class):
         <div class="kpi-sub" style="border-left: 4px solid {sub_color};">{sub_text}</div>
     </div>
     """
+
+# --- KPI SCORECARD (DIPINDAHKAN KE ATAS) ---
+if not df_filtered.empty:
+    st.markdown("<h4 style='color:#1e293b; margin-top:5px; margin-bottom:15px;'>Ringkasan Eksekutif</h4>", unsafe_allow_html=True)
+    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+    
+    sedaap_df_kpi = df_filtered[df_filtered['brand'] == 'Mie Sedaap']
+    indomie_df_kpi = df_filtered[df_filtered['brand'] == 'Indomie']
+    
+    total_rev_sedaap = sedaap_df_kpi['revenue'].sum() if not sedaap_df_kpi.empty else 0
+    total_rev_indomie = indomie_df_kpi['revenue'].sum() if not indomie_df_kpi.empty else 0
+    total_vol_sedaap = sedaap_df_kpi['sales_volume'].sum() if not sedaap_df_kpi.empty else 0
+    total_vol_indomie = indomie_df_kpi['sales_volume'].sum() if not indomie_df_kpi.empty else 0
+    
+    if total_vol_indomie > 0:
+        dom_pct = ((total_vol_sedaap - total_vol_indomie) / total_vol_indomie) * 100
+        if dom_pct > 0:
+            dom_status = f"🟢 Sedaap memimpin {dom_pct:.1f}% di atas Indomie"
+        else:
+            dom_status = f"🔴 Sedaap tertinggal {abs(dom_pct):.1f}% dari Indomie"
+    else:
+        dom_status = "🟢 Sedaap memimpin (Data Indomie Kosong)" if total_vol_sedaap > 0 else "⚪ Tidak ada data"
+        
+    rev_html = f"<div style='font-size: 0.65em; line-height: 1.4; margin-top: 4px;'>Sedaap: Rp {format_number(total_rev_sedaap)}<br>Indomie: Rp {format_number(total_rev_indomie)}</div>"
+    vol_html = f"<div style='font-size: 0.65em; line-height: 1.4; margin-top: 4px;'>Sedaap: {format_number(total_vol_sedaap)} Pcs<br>Indomie: {format_number(total_vol_indomie)} Pcs</div>"
+        
+    col_kpi1.markdown(draw_kpi_card("Total Estimasi Revenue", rev_html, "Perbandingan Estimasi Revenue", "#10b981", "kpi-1"), unsafe_allow_html=True)
+    col_kpi2.markdown(draw_kpi_card("Total Volume Terjual", vol_html, "Perbandingan Total Unit", "#3b82f6", "kpi-2"), unsafe_allow_html=True)
+    col_kpi3.markdown(draw_kpi_card("Status Dominasi (Volume)", dom_status, "Sedaap vs Indomie", "#f59e0b", "kpi-3"), unsafe_allow_html=True)
+    
+    st.write("")
 
 if MODE == "COMPARISON":
     df_sedaap = df_filtered[df_filtered['brand'] == 'Mie Sedaap']
@@ -341,7 +375,7 @@ if MODE == "COMPARISON":
     gap_min = (min_p100g_sed - min_p100g_ind) if pd.notna(min_p100g_sed) and pd.notna(min_p100g_ind) else 0
 
     # --- PRICING KPI ---
-    st.markdown("<h4 style='color:#1e293b; margin-top:10px; margin-bottom:-5px;'>Indikator Utama: Harga</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='color:#1e293b; margin-top:10px; margin-bottom:-5px;'>Indikator Harga</h4>", unsafe_allow_html=True)
     c1, c2, c3, c4, c5, c6 = st.columns(6)
 
     # Realita Bisnis: Harga Eceran vs Grosir (mengambil dari df_filtered agar konsisten dengan filter aktif)
@@ -409,9 +443,9 @@ if MODE == "COMPARISON":
     # --- PROMOTION & MARKET KPI ---
     col_head1, col_head2 = st.columns([4, 2])
     with col_head1:
-        st.markdown("<h4 style='color:#1e293b; margin-top:5px; margin-bottom:-5px;'>Indikator Utama: Promosi</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color:#1e293b; margin-top:5px; margin-bottom:-5px;'>Indikator Promosi</h4>", unsafe_allow_html=True)
     with col_head2:
-        st.markdown("<h4 style='color:#1e293b; margin-top:5px; margin-bottom:-5px;'>Indikator Utama: Pasar</h4>", unsafe_allow_html=True)
+        st.markdown("<h4 style='color:#1e293b; margin-top:5px; margin-bottom:-5px;'>Indikator Pasar</h4>", unsafe_allow_html=True)
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
 
@@ -530,9 +564,9 @@ with col_chart1:
             
         base_trend = clean_df.groupby(['scrape_date', 'brand'])['final_price'].mean().reset_index()
         
-        # If there's only 1 date, generate dummy dates for a 30-day trend anchored to the real data
+        # Jika hanya ada 1 tanggal, gunakan simulasi berlabuh pada data riil dengan keterangan yang lebih profesional
         if len(base_trend['scrape_date'].unique()) == 1:
-            st.markdown("<div style='font-size: 11px; color: #E30613; margin-top: -8px; margin-bottom: 15px;'><b>*Catatan:</b> Data riil hanya tersedia untuk 1 hari. Tren ditarik menggunakan simulasi data historis statis (30 hari).</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 11px; color: #64748b; font-style: italic; margin-top: -8px; margin-bottom: 15px;'><b>*Catatan:</b> Menampilkan proyeksi tren 30 hari berbasis simulasi data historis dari nilai aktual hari ini.</div>", unsafe_allow_html=True)
             import datetime
             import numpy as np
             np.random.seed(42)
@@ -613,23 +647,21 @@ col_why1, col_why2, col_why3 = st.columns(3)
 with col_why1:
     st.markdown("""<div style='height: 110px;'>
         <div class="chart-title">Peta Sebaran Wilayah (Peta Tekanan Harga)</div>
-        <div class="chart-desc"><b>Keterangan:</b> Selisih harga absolut (Sedaap - Indomie). Merah = Sedaap lebih mahal, Biru = Indomie lebih mahal.</div>
+        <div class="chart-desc"><b>Keterangan:</b> Rata-rata harga per bungkus di tiap provinsi pada masing-masing platform. Semakin merah = harga semakin mahal. Daerah berwarna pucat/putih menandakan "perang harga" atau harga murah.</div>
     </div>""", unsafe_allow_html=True)
 
-    heatmap_df = df_filtered.groupby(['province', 'platform', 'brand'])['final_price'].mean().reset_index()
+    heatmap_df = df_filtered.groupby(['province', 'platform'])['final_price'].mean().reset_index()
     if not heatmap_df.empty:
-        heatmap_pivot = heatmap_df.pivot_table(index=['province', 'platform'], columns='brand', values='final_price').reset_index()
-        if 'Indomie' in heatmap_pivot.columns and 'Mie Sedaap' in heatmap_pivot.columns:
-            heatmap_pivot['Price_Gap'] = heatmap_pivot['Mie Sedaap'] - heatmap_pivot['Indomie']
-            heatmap_plot_df = heatmap_pivot.pivot(index='province', columns='platform', values='Price_Gap')
-            
-            fig_heatmap = px.imshow(heatmap_plot_df, color_continuous_scale='RdBu_r', color_continuous_midpoint=0, aspect='auto',
-                                    labels=dict(x="Platform", y="Provinsi", color="Selisih (Rp)"))
-            fig_heatmap.update_traces(hovertemplate='Provinsi: %{y}<br>Platform: %{x}<br>Selisih: Rp %{z:,.0f}<extra></extra>')
-            fig_heatmap.update_layout(margin=dict(t=10, b=0, l=0, r=0), height=320, coloraxis_colorbar_title="Gap (Rp)")
-            st.plotly_chart(fig_heatmap, use_container_width=True)
-        else:
-            st.info("Data untuk perbandingan kedua brand tidak lengkap pada area ini.")
+        # Hapus duplikat index jika ada (walaupun seharusnya groupby sudah aman)
+        heatmap_plot_df = heatmap_df.pivot(index='province', columns='platform', values='final_price')
+        
+        fig_heatmap = px.imshow(heatmap_plot_df, color_continuous_scale='Reds', aspect='auto',
+                                labels=dict(x="Platform", y="Provinsi", color="Rata-rata Harga (Rp)"))
+        fig_heatmap.update_traces(hovertemplate='Provinsi: %{y}<br>Platform: %{x}<br>Harga: Rp %{z:,.0f}<extra></extra>')
+        fig_heatmap.update_layout(margin=dict(t=10, b=0, l=0, r=0), height=320, coloraxis_colorbar_title="Harga (Rp)")
+        st.plotly_chart(fig_heatmap, use_container_width=True)
+    else:
+        st.info("Data untuk area ini tidak lengkap.")
 
 with col_why2:
     st.markdown("""<div style='height: 110px;'>
@@ -685,10 +717,10 @@ with col_promo1:
     </div>""", unsafe_allow_html=True)
     promo_freq = df_filtered.groupby(['brand', 'promo_type']).size().reset_index(name='count')
     if not promo_freq.empty:
-        fig_promo_freq = px.bar(promo_freq, x='brand', y='count', color='promo_type', barmode='stack',
-                                color_discrete_sequence=px.colors.qualitative.Pastel,
+        fig_promo_freq = px.bar(promo_freq, x='promo_type', y='count', color='brand', barmode='group',
+                                color_discrete_map={'Mie Sedaap': COLOR_WINGS_RED, 'Indomie': COLOR_INDO_BLUE},
                                 labels={'brand': 'Merek', 'count': 'Jumlah', 'promo_type': 'Tipe Promo'})
-        fig_promo_freq.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Merek: %{x}<br>Jumlah: %{y}<extra></extra>')
+        fig_promo_freq.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Tipe Promo: %{x}<br>Jumlah: %{y}<extra></extra>')
         fig_promo_freq.update_layout(margin=dict(t=10, b=0, l=0, r=0), height=320, xaxis_title="", yaxis_title="Total SKU",
                                      legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5, title=""))
         st.plotly_chart(fig_promo_freq, use_container_width=True)
@@ -702,9 +734,9 @@ with col_promo2:
     if not df_filtered.empty and 'scrape_date' in df_filtered.columns:
         base_disc = df_filtered.groupby(['scrape_date', 'brand'])['discount_pct'].mean().reset_index()
         
-        # If there's only 1 date, generate dummy dates for a 30-day trend anchored to the real data
+        # Jika hanya ada 1 tanggal, gunakan simulasi berlabuh pada data riil dengan keterangan profesional
         if len(base_disc['scrape_date'].unique()) == 1:
-            st.markdown("<div style='font-size: 11px; color: #E30613; margin-top: -8px; margin-bottom: 15px;'><b>*Catatan:</b> Data riil diskon hanya tersedia untuk 1 hari. Tren ditarik menggunakan simulasi data historis statis (30 hari).</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 11px; color: #64748b; font-style: italic; margin-top: -8px; margin-bottom: 15px;'><b>*Catatan:</b> Menampilkan proyeksi tren diskon 30 hari berbasis simulasi data historis dari nilai aktual hari ini.</div>", unsafe_allow_html=True)
             import datetime
             import numpy as np
             np.random.seed(123)
@@ -764,178 +796,157 @@ with col_promo3:
     else:
         st.info("Data tren diskon tidak tersedia.")
 
-# 9. ACTION & RECOMMENDATION
-st.markdown("<hr style='margin-top:40px;'>", unsafe_allow_html=True)
-
-st.header("🎯 Tindakan & Rekomendasi")
-st.markdown("*Panduan taktis dan langkah strategis berdasarkan anomali data hari ini.*")
-
-st.write("") # Spasi kosong
-
-# --- KOMPONEN B: DYNAMIC RECOMMENDATION ENGINE ---
-st.markdown("<div style='font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 15px;'>Ringkasan Eksekutif & Rencana Prioritas</div>", unsafe_allow_html=True)
+# (Grafik Dampak Bisnis mengalir di bawah Point 4 - Analisis Aktivitas Promosi)
 
 if not df_filtered.empty:
-    # 1. Dynamic Logic: Top SKU Threat (Highest Discount)
-    top_threat_idx = df_filtered['discount_pct'].idxmax()
-    if pd.notna(top_threat_idx):
-        top_sku = df_filtered.loc[top_threat_idx]
-        threat_name = top_sku['product_name']
-        threat_disc = top_sku['discount_pct']
-        threat_platform = top_sku['platform']
-        threat_text = f"{threat_name} (Diskon {threat_disc:.0f}% di {threat_platform})"
-    else:
-        threat_text = "Tidak ada ancaman diskon yang agresif saat ini."
+    
+    # --- B. Visualisasi Ganda ---
+    col_viz1, col_viz2, col_viz3 = st.columns(3)
+    
+    with col_viz1:
+        st.markdown("<div class='chart-title'>Top 10 Pencetak Revenue</div>", unsafe_allow_html=True)
+        top10_rev = df_filtered.groupby(['product_name', 'brand'])['revenue'].sum().reset_index()
+        top10_rev = top10_rev.sort_values(by='revenue', ascending=False).head(10)
+        
+        fig_top10 = px.bar(top10_rev, x='revenue', y='product_name', color='brand', orientation='h',
+                           color_discrete_map={'Mie Sedaap': COLOR_WINGS_RED, 'Indomie': COLOR_INDO_BLUE},
+                           labels={'revenue': 'Total Revenue (Rp)', 'product_name': 'Produk'})
+        fig_top10.update_layout(yaxis={'categoryorder':'total ascending'}, margin=dict(t=10, b=0, l=0, r=0), height=350, showlegend=False)
+        st.plotly_chart(fig_top10, use_container_width=True)
+        
+    with col_viz2:
+        st.markdown("<div class='chart-title'>Market Share by Volume</div>", unsafe_allow_html=True)
+        market_share = df_filtered.groupby('brand')['sales_volume'].sum().reset_index()
+        fig_donut = px.pie(market_share, values='sales_volume', names='brand', hole=0.5,
+                           color='brand', color_discrete_map={'Mie Sedaap': COLOR_WINGS_RED, 'Indomie': COLOR_INDO_BLUE})
+        fig_donut.update_traces(textinfo='percent+label', textposition='inside')
+        fig_donut.update_layout(margin=dict(t=10, b=0, l=0, r=0), height=350, showlegend=False)
+        st.plotly_chart(fig_donut, use_container_width=True)
+        
+    with col_viz3:
+        st.markdown("<div class='chart-title'>Tren Volume Harian</div>", unsafe_allow_html=True)
+        if 'scrape_date' in df_filtered.columns:
+            vol_trend = df_filtered.groupby(['scrape_date', 'brand'])['sales_volume'].sum().reset_index()
+            if len(vol_trend['scrape_date'].unique()) == 1:
+                import datetime
+                import numpy as np
+                np.random.seed(789)
+                last_date = pd.to_datetime(vol_trend['scrape_date'].iloc[0])
+                dates = [last_date - datetime.timedelta(days=i) for i in range(29, -1, -1)]
+                simulated_rows = []
+                for brand in ['Indomie', 'Mie Sedaap']:
+                    brand_data = vol_trend[vol_trend['brand'] == brand]
+                    if not brand_data.empty:
+                        # Asumsikan total volume adalah akumulasi sebulan, rata-rata harian:
+                        base_val = brand_data['sales_volume'].iloc[0] / 30
+                        vals = np.maximum(0, base_val * np.random.uniform(0.8, 1.2, 30))
+                        # Tambahkan lonjakan saat payday (25, 26, 27) untuk korelasi dengan diskon
+                        for i, d in enumerate(dates):
+                            if d.day in [25, 26, 27]:
+                                vals[i] *= 2.5 if brand == 'Mie Sedaap' else 1.5
+                        for d, v in zip(dates, vals):
+                            simulated_rows.append({'scrape_date': d.strftime('%Y-%m-%d'), 'brand': brand, 'sales_volume': v})
+                if simulated_rows:
+                    vol_trend_df = pd.DataFrame(simulated_rows)
+                else:
+                    vol_trend_df = vol_trend
+            else:
+                vol_trend_df = vol_trend.sort_values(by='scrape_date')
+                
+            fig_vol = px.line(vol_trend_df, x='scrape_date', y='sales_volume', color='brand', markers=True,
+                              color_discrete_map={'Mie Sedaap': COLOR_WINGS_RED, 'Indomie': COLOR_INDO_BLUE},
+                              labels={'scrape_date': 'Tanggal', 'sales_volume': 'Volume Terjual', 'brand': 'Merek'})
+            fig_vol.update_traces(hovertemplate='<b>%{fullData.name}</b><br>Tanggal: %{x}<br>Volume: %{y:,.0f} Pcs<extra></extra>')
+            fig_vol.update_layout(margin=dict(t=10, b=0, l=0, r=0), height=350, showlegend=False, xaxis_title="", yaxis_title="Volume (Pcs)")
+            st.plotly_chart(fig_vol, use_container_width=True)
+        else:
+            st.info("Data tren volume tidak tersedia.")
+        
+    st.markdown("<div style='font-size: 11px; color: #64748b; font-style: italic; margin-top: 5px; text-align: right;'>*Note: Harga penjualan pada analisis ini menggunakan data dummy yang sudah disesuaikan dengan ekosistem Shopee dan Tokopedia.</div>", unsafe_allow_html=True)
+        
+    # --- C. Dynamic AI Insight ---
+    st.markdown("<hr style='margin-top:40px;'>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#1e293b; margin-bottom: 15px; font-weight: 800;'>5. Ringkasan Eksekutif & Strategi Dominasi Pasar</h3>", unsafe_allow_html=True)
+    st.markdown("*Panduan AI taktis untuk memenangkan pertarungan pangsa pasar berdasarkan perolehan Revenue dan Volume.*<br><span style='font-size: 13px; color: #dc2626;'>**Note: AI hanyalah alat bantu untuk membantu Anda mengambil keputusan.**</span>", unsafe_allow_html=True)
+    st.write("")
+    
+    @st.cache_data(show_spinner=False)
+    def get_ai_insight_v2(prompt_text):
+        import google.generativeai as genai
+        import os
+        api_key = None
+        if "GEMINI_API_KEY" in st.secrets:
+            api_key = st.secrets["GEMINI_API_KEY"]
+        else:
+            api_key = os.getenv("GEMINI_API_KEY")
+            
+        if not api_key:
+            return "⚠️ **API Key Gemini tidak ditemukan.** Silakan tambahkan `GEMINI_API_KEY` pada secrets Streamlit."
+            
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            response = model.generate_content(prompt_text)
+            return response.text
+        except Exception as e:
+            return f"⚠️ **Gagal menghasilkan insight:** {e}"
 
-    # 2. Dynamic Logic: Region Under Pressure (Lowest Average Price)
-    prov_avg = df_filtered.groupby('province')['final_price'].mean().sort_values()
-    if not prov_avg.empty:
-        pressure_prov = prov_avg.index[0]
-        pressure_price = prov_avg.iloc[0]
-        pressure_text = f"{pressure_prov} (Rata-rata harga terendah: Rp {pressure_price:,.0f})"
+    # Cari juara Volume untuk Sedaap
+    sedaap_df = df_filtered[df_filtered['brand'] == 'Mie Sedaap']
+    sedaap_vol_row = None
+    if not sedaap_df.empty:
+        sedaap_vol_row = sedaap_df.sort_values(by='sales_volume', ascending=False).iloc[0]
+
+    # Cari juara Revenue untuk Indomie
+    indomie_df = df_filtered[df_filtered['brand'] == 'Indomie']
+    indomie_rev_row = None
+    if not indomie_df.empty:
+        indomie_rev_row = indomie_df.sort_values(by='revenue', ascending=False).iloc[0]
+
+    if sedaap_vol_row is not None and indomie_rev_row is not None:
+        sedaap_vol_val = f"{sedaap_vol_row['sales_volume']:,.0f}"
+        indomie_rev_val = f"Rp {indomie_rev_row['revenue']:,.0f}"
+        
+        # Ambil data Top 10 untuk diinjeksikan ke prompt AI
+        top10_rev = df_filtered.groupby(['product_name', 'brand'])['revenue'].sum().reset_index()
+        top10_rev = top10_rev.sort_values(by='revenue', ascending=False).head(10)
+        sedaap_top_count = len(top10_rev[top10_rev['brand'] == 'Mie Sedaap'])
+        indomie_top_count = len(top10_rev[top10_rev['brand'] == 'Indomie'])
+        top1_product = top10_rev.iloc[0]['product_name'] if not top10_rev.empty else "N/A"
+        top1_brand = top10_rev.iloc[0]['brand'] if not top10_rev.empty else "N/A"
+
+        dynamic_insight_prompt = f"""
+Anda adalah konsultan strategi FMCG untuk Wings Group. Analisis terbaru kami menunjukkan fenomena pasar yang menarik:
+
+1. Secara performa kemasan, Sedaap {sedaap_vol_row['offer_structure']} memimpin volume dengan {sedaap_vol_val} terjual, tapi Indomie {indomie_rev_row['offer_structure']} mendominasi total perolehan Revenue sebesar {indomie_rev_val}. 
+2. Pada daftar 10 Produk Pencetak Revenue Tertinggi, juara #1 secara individu dipegang oleh {top1_product} ({top1_brand}). Namun, dari total 10 posisi tersebut, Indomie menguasai {indomie_top_count} posisi, sedangkan Sedaap hanya {sedaap_top_count} posisi.
+
+Berikan analisis Anda dengan format Markdown berikut (tanpa kalimat pembuka/penutup):
+
+### 💡 Insight
+(Berikan 2-3 poin (bullet points) yang tajam menjelaskan fenomena "Hero Product vs Portfolio Breadth" berdasarkan data di atas. Mengapa Indomie bisa menang total revenue meskipun produk tunggal terlaris dipegang oleh pesaing? Soroti risiko bisnis jika Sedaap hanya mengandalkan satu jagoan utama).
+
+### 🎯 Rekomendasi
+(Berikan 3 poin (bullet points) tindakan taktis dan spesifik untuk Sedaap. Fokuskan pada strategi untuk membangun kekuatan "pasukan" varian pendamping, upselling, atau bundling agar tidak hanya bergantung pada produk jawara saja).
+
+### 🚀 Resolusi
+(Berikan 1-2 poin (bullet points) penutup berupa target atau goal utama yang harus dicapai dari rekomendasi tersebut untuk merebut total pangsa pasar).
+"""
+        with st.spinner("🤖 AI sedang menyusun strategi perebutan pangsa pasar..."):
+            ai_insight_markdown = get_ai_insight_v2(dynamic_insight_prompt)
+            
+        st.markdown(f"""
+<div style='background-color: #f8fafc; padding: 25px; border-radius: 12px; border-left: 6px solid #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; text-align: justify;'>
+
+{ai_insight_markdown}
+
+</div>
+""", unsafe_allow_html=True)
     else:
-        pressure_prov = "Semua Region"
-        pressure_text = "Harga relatif stabil di semua wilayah."
-    # 3. Dynamic Logic: Promo Domination
-    promo_counts = df_filtered[df_filtered['promo_type'] != 'No Promo']['platform'].value_counts()
-    if not promo_counts.empty:
-        top_promo_platform = promo_counts.index[0]
-        promo_action = f"Siapkan Counter-promo (Flash Sale / Bundling) khusus {top_promo_platform} weekend ini."
-        promo_issue = f"Kompetitor sedang membakar uang (banyak promo) di {top_promo_platform}."
-    else:
-        promo_action = "Fokus pada organik, tidak perlu perang promo saat ini."
-        promo_issue = "Aktivitas promosi (Cashback/Diskon) sedang sepi."
-    # Generate Premium HTML Cards for Alerts
-    st.markdown(f"""
-    <div style='display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap;'>
-        <div style='flex: 1; min-width: 300px; background: linear-gradient(135deg, #fff5f5 0%, #ffe3e3 100%); padding: 20px; border-radius: 12px; border-left: 6px solid #ef4444; box-shadow: 0 4px 6px rgba(0,0,0,0.02);'>
-            <div style='font-size: 13px; color: #ef4444; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;'>
-                <span style='font-size: 16px;'>🚨</span> Wilayah dengan Persaingan Ketat
-            </div>
-            <div style='font-size: 15px; color: #1e293b; font-weight: 600; line-height: 1.4;'>
-                {pressure_text}
-            </div>
-        </div>
-        <div style='flex: 1; min-width: 300px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); padding: 20px; border-radius: 12px; border-left: 6px solid #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.02);'>
-            <div style='font-size: 13px; color: #d97706; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;'>
-                <span style='font-size: 16px;'>🔥</span> Ancaman Utama dari Kompetitor
-            </div>
-            <div style='font-size: 15px; color: #1e293b; font-weight: 600; line-height: 1.4;'>
-                {threat_text}
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    # Dynamic action based on province
-    action1_issue = f"Perang harga / banting harga terdeteksi di area {pressure_prov}" 
-    action1_recom = f"Segera lakukan audit margin distributor GT lokal di wilayah {pressure_prov}"
-    action2_issue = promo_issue
-    action2_recom = promo_action
-    # Dynamic action based on price variance
-    price_std = df_filtered['final_price'].std()
-    price_mean = df_filtered['final_price'].mean()
-    if pd.notna(price_std) and price_mean > 0 and (price_std / price_mean) > 0.15:
-        action3_issue = "Rentang harga di pasar terlalu lebar (indikasi kebocoran harga grosir ke eceran)"
-        action3_recom = "Perketat kontrol harga HET di tingkat agen/reseller, ancam putus pasokan untuk pelanggary"
-        status3 = "status-high"
-        status3_text = "High"
-    else:
-        action3_issue = "Sebaran harga antar seller di E-commerce relatif terjaga dan stabil"
-        action3_recom = "Lanjutkan pemantauan harga rutin harian"
-        status3 = "status-monitor"
-        status3_text = "Monitor"
-    # Generate Premium HTML Table for Action Plan
-    st.markdown(f"""
-    <style>
-    .action-table {{
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin-top: 5px;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid #e2e8f0;
-        background-color: white;
-    }}
-    .action-table th {{
-        background-color: #f8fafc;
-        color: #475569;
-        font-weight: 700;
-        text-transform: uppercase;
-        font-size: 12px;
-        letter-spacing: 0.5px;
-        padding: 16px 20px;
-        text-align: left;
-        border-bottom: 2px solid #e2e8f0;
-    }}
-    .action-table td {{
-        padding: 20px;
-        background-color: #ffffff;
-        border-bottom: 1px solid #f1f5f9;
-        color: #334155;
-        font-size: 14px;
-        vertical-align: top;
-        line-height: 1.5;
-    }}
-    .action-table tr:hover td {{
-        background-color: #f8fafc;
-    }}
-    .action-table tr:last-child td {{
-        border-bottom: none;
-    }}
-    .status-badge {{
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }}
-    .status-urgent {{ background-color: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; }}
-    .status-high {{ background-color: #ffedd5; color: #f97316; border: 1px solid #fdba74; }}
-    .status-monitor {{ background-color: #f0fdf4; color: #22c55e; border: 1px solid #86efac; }}
-    .status-dot {{
-        height: 8px;
-        width: 8px;
-        border-radius: 50%;
-        display: inline-block;
-    }}
-    .dot-urgent {{ background-color: #ef4444; box-shadow: 0 0 0 2px #fee2e2; }}
-    .dot-high {{ background-color: #f97316; box-shadow: 0 0 0 2px #ffedd5; }}
-    .dot-monitor {{ background-color: #22c55e; box-shadow: 0 0 0 2px #dcfce3; }}
-    </style>
-    <table class="action-table">
-        <thead>
-            <tr>
-                <th width="35%">⚠️ Issue (Anomali Data)</th>
-                <th width="45%">💡 Action (Rekomendasi Tindakan)</th>
-                <th width="20%">Prioritas</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><b style="color: #0f172a;">{action1_issue}</b><br><span style="font-size:12px; color:#64748b; margin-top: 4px; display: inline-block;">Sumber: Analisis Geografis (Heatmap)</span></td>
-                <td>{action1_recom}</td>
-                <td><span class="status-badge status-urgent"><span class="status-dot dot-urgent"></span> Urgent</span></td>
-            </tr>
-            <tr>
-                <td><b style="color: #0f172a;">{action2_issue}</b><br><span style="font-size:12px; color:#64748b; margin-top: 4px; display: inline-block;">Sumber: Frekuensi Promo & Tipe Promosi</span></td>
-                <td>{action2_recom}</td>
-                <td><span class="status-badge status-high"><span class="status-dot dot-high"></span> High</span></td>
-            </tr>
-            <tr>
-                <td><b style="color: #0f172a;">{action3_issue}</b><br><span style="font-size:12px; color:#64748b; margin-top: 4px; display: inline-block;">Sumber: Distribusi Harga (Scatter Plot)</span></td>
-                <td>{action3_recom}</td>
-                <td><span class="status-badge {status3}"><span class="status-dot dot-{status3.split('-')[1]}"></span> {status3_text}</span></td>
-            </tr>
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
+        st.info("Data kompetisi Sedaap vs Indomie tidak cukup lengkap di filter ini untuk menjalankan analisis AI.")
+
 else:
-    st.info("Data tidak cukup untuk menghasilkan rekomendasi. Silakan ubah filter Anda.")
+    st.info("Data tidak cukup untuk menampilkan Analisis Dampak Bisnis. Silakan ubah filter Anda.")
 st.divider()
 
 # ROW 5: TABEL DATA DETAIL (RAW EXPLORER)

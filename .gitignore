@@ -10,3 +10,4 @@ venv/
 .DS_Store
 chrome_profile/
 chrome_profile_tokped/
+.streamlit/secrets.toml
