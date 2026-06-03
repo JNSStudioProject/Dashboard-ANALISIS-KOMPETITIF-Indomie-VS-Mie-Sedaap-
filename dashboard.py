@@ -253,6 +253,17 @@ st.markdown(f"""
     <p class="report-subtitle">{report_subtitle}</p>
 </div>
 """, unsafe_allow_html=True)
+
+# --- FIRST VISIT WARNING ---
+if 'first_visit' not in st.session_state:
+    st.session_state['first_visit'] = True
+
+if st.session_state['first_visit']:
+    st.warning("⚠️ **PERINGATAN DATA:** Untuk data *trend waktu* dan *sales volume* pada dasbor ini adalah **data dummy (simulasi)**. Sedangkan data harga, daftar produk, promo, dan data dasar lainnya adalah **hasil scraping asli dari ekosistem Shopee dan Tokopedia**.")
+    if st.button("Saya Mengerti"):
+        st.session_state['first_visit'] = False
+        st.rerun()
+
 def generate_exec_summary(df_filtered, mode):
     if mode == "SINGLE_BRAND":
         return "Insight analitik komparatif tidak tersedia. Silakan pilih minimal dua brand pada filter (misalnya: Wings Group dan Indofood) untuk melihat perbandingan agresivitas harga dan promosi secara langsung."
